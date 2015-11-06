@@ -21,21 +21,25 @@ studentlist_15_16$RecordYear = "2015-2016"
 
 #for 13_14 and 15_16: subset columns for name, address, city, ZIP, UIC. rename the columns.
 
-studentlist_13_14 = studentlist_13_14[,c(10, 11, 12, 13, 25, 28, 30, 31, 32, 144)]
+studentlist_13_14 = studentlist_13_14[,c(10, 11, 12, 13, 28, 30, 32, 144)]
 studentlist_13_14 = rename(studentlist_13_14, c("PersonalDemographicsCity" = "City", "ZipCode" = "ZIP"))
 
-studentlist_15_16 = studentlist_15_16[,c(10, 11, 12, 13, 26, 29, 31, 32, 33, 145)]
+studentlist_15_16 = studentlist_15_16[,c(10, 11, 12, 13, 29, 31, 33, 145)]
 studentlist_15_16 = rename(studentlist_15_16, c("PersonalDemographicsCity" = "City", "ZipCode" = "ZIP"))
 
 #for 14_15 , subset columns for name, address, city, ZIP, UIC. rename the columns.
-studentlist_14_15 = studentlist_14_15[,c(4, 5, 6, 7, 8)]
+studentlist_14_15 = studentlist_14_15[,c(4, 5, 6, 7, 8, 41)]
 studentlist_14_15 = separate(studentlist_14_15, col = "txtName", into = c("LastName", "FirstName"), sep = ",")
 studentlist_14_15 = rename(studentlist_14_15, c("txtAddress" = "StreetAddress" , "txtCity" = "City", "txtZip" = "ZIP", "textbox9" = "UIC"))
+studentlist_14_15$MiddleName = NA
 
-#TODO: combine using rbind (NOTE: SOME FIELDS MISSING FRMO 14-15 DATA)
-# 
-# studentlist = rbind(studentlist_13_14, studentlist_14_15, studentlist_15_16)
-# studentlist = rename(studentlist, "PersonalDemographicsCity" = "City")
+#combine using rbind (NOTE: SOME FIELDS MISSING FROM 14-15 DATA)
+
+studentlist = rbind(studentlist_13_14, studentlist_14_15, studentlist_15_16)
+
+#trim whitespace, coerce first and last names to uppercase for matching in merges
+studentlist$FirstName = str_trim(toupper(studentlist$FirstName))
+studentlist$LastName = str_trim(toupper(studentlist$LastName))
 
 #===================================================================================
 #enrollment data
@@ -43,12 +47,17 @@ studentlist_14_15 = rename(studentlist_14_15, c("txtAddress" = "StreetAddress" ,
 enrollment_data = read.csv("alldata/2015-16 Enrollment Form Responses 07 15 2015.csv")
 
 #subset only needed data
-enrollment_data = enrollment_data[,c(2, 3, 4, 7, 11, 14, 15, 18, 22:24)]
+enrollment_data = enrollment_data[,c(2, 3, 7, 11, 14, 15, 18, 22, 23)]
 
-#TODO: reformat to match destination data in merge
-enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "Middle.name" = "MiddleName", "Street.Address" = "StreetAddress", "Zip.code" = "ZipCode", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
-enrollment_data = mutate(enrollment_data, MiddleName = substr(MiddleName, 1, 1))
+#reformat to match destination data in merge
+enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "Street.Address" = "StreetAddress", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
+#enrollment_data = mutate(enrollment_data, MiddleName = substr(MiddleName, 1, 1))
 
+#coerce first and last names to uppercase for matching in merges
+enrollment_data$FirstName = toupper(enrollment_data$FirstName)
+enrollment_data$LastName = toupper(enrollment_data$LastName)
+
+studentlist = merge(studentlist, enrollment_data, row.names=c("LastName", "FirstName"), all.x=TRUE)
 #===================================================================================
 #attendance - NOTE: 2015-2016 data not available: only have data through October, but this data could be summarized & used to make forecasts if desired.
 
