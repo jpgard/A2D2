@@ -2,10 +2,15 @@
 #AALC demographic dataset assembly, Ann Arbor Data Dive 2015
 #script written by Josh Gardner, UMSI
 
+#load packages
 library(plyr)
 library(tidyr)
 library(stringr)
 library(xlsx)
+
+# load FillIn function; this is a modified script from:
+# http://www.r-bloggers.com/fillin-a-function-for-filling-in-missing-data-in-one-data-frame-with-info-from-another/
+source("FillIn.R")
 
 #===================================================================================
 #studentlist
@@ -21,10 +26,10 @@ studentlist_15_16$RecordYear = "2015-2016"
 
 #for 13_14 and 15_16: subset columns for name, address, city, ZIP, UIC. rename the columns.
 
-studentlist_13_14 = studentlist_13_14[,c(10, 11, 12, 13, 28, 30, 32, 144)]
+studentlist_13_14 = studentlist_13_14[,c(10, 11, 12, 13, 17, 28, 30, 32, 144)]
 studentlist_13_14 = rename(studentlist_13_14, c("PersonalDemographicsCity" = "City", "ZipCode" = "ZIP"))
 
-studentlist_15_16 = studentlist_15_16[,c(10, 11, 12, 13, 29, 31, 33, 145)]
+studentlist_15_16 = studentlist_15_16[,c(10, 11, 12, 13, 17, 29, 31, 33, 145)]
 studentlist_15_16 = rename(studentlist_15_16, c("PersonalDemographicsCity" = "City", "ZipCode" = "ZIP"))
 
 #for 14_15 , subset columns for name, address, city, ZIP, UIC. rename the columns.
@@ -32,19 +37,16 @@ studentlist_14_15 = studentlist_14_15[,c(4, 5, 6, 7, 8, 41)]
 studentlist_14_15 = separate(studentlist_14_15, col = "txtName", into = c("LastName", "FirstName"), sep = ",")
 studentlist_14_15 = rename(studentlist_14_15, c("txtAddress" = "StreetAddress" , "txtCity" = "City", "txtZip" = "ZIP", "textbox9" = "UIC"))
 studentlist_14_15$MiddleName = NA
+studentlist_14_15$Gender = NA
 
 #combine using rbind (NOTE: SOME FIELDS MISSING FROM 14-15 DATA)
 
 studentlist = rbind(studentlist_13_14, studentlist_14_15, studentlist_15_16)
 
-#trim whitespace, coerce first and last names to uppercase for matching in merges
-studentlist$FirstName = str_trim(toupper(studentlist$FirstName))
-studentlist$LastName = str_trim(toupper(studentlist$LastName))
+#trim whitespace, coerce first and last names to uppercase, and remove non-alphanumeric characters for matching in merges
+studentlist$FirstName = gsub("[^[:alnum:] ]", "", str_trim(toupper(studentlist$FirstName)))
+studentlist$LastName = gsub("[^[:alnum:] ]", "", str_trim(toupper(studentlist$LastName)))
 
-#TODO: REMOVE NON-ALPHA CHARACTERS FROM FIRSTNAME AND LASTNAME FIELDS IN STUDENTLIST TO IMPROVE MATCHING
-# remove alphanumeric characters
-# gsub("[^[:alnum:] ]", "", lastname)
-# (replace lastname with string to remove alphanumeric characters from)
 
 #===================================================================================
 #enrollment data
@@ -56,15 +58,26 @@ enrollment_data = enrollment_data[,c(2, 3, 7, 11, 14, 15, 18, 22, 23)]
 
 #reformat to match destination data in merge
 enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "Street.Address" = "StreetAddress", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
-#enrollment_data = mutate(enrollment_data, MiddleName = substr(MiddleName, 1, 1))
+revalue(enrollment_data$Gender, c("Male" = "M", "Female" = "F")) -> enrollment_data$Gender
 
 #coerce first and last names to uppercase for matching in merges
-enrollment_data$FirstName = toupper(enrollment_data$FirstName)
-enrollment_data$LastName = toupper(enrollment_data$LastName)
+enrollment_data$FirstName = gsub("[^[:alnum:] ]", "", toupper(enrollment_data$FirstName))
+enrollment_data$LastName = gsub("[^[:alnum:] ]", "", toupper(enrollment_data$LastName))
 
-#TODO: REMOVE NON-ALPHA CHARACTERS FROM FIRSTNAME AND LASTNAME FIELDS IN ENROLLMENT_DATA
+#pull gender values to fill in student_list
+studentlist = FillIn(D1 = studentlist, D2 = enrollment_data, Var1 = "Gender", Var2 = "Gender", KeyVar = c("FirstName", "LastName"))
+#studentlist = FillIn(D1 = studentlist, D2 = enrollment_data, Var1 = "Gender", Var2 = "Gender", KeyVar = c("FirstName", "LastName"))
 
-studentlist = merge(studentlist, enrollment_data, row.names=c("LastName", "FirstName"), all.x=TRUE)
+#pull street address, city, and ZIP to fill in
+
+#remove gender variable after filling in
+
+enrollment_data = enrollment_data[,-4]
+
+studentlist = merge(studentlist, enrollment_data, by=c("LastName", "FirstName"), all.x=TRUE)
+
+##TODO: CHECK DATA, COMPLETE MORE MERGES BELOW
+
 #===================================================================================
 #attendance - NOTE: 2015-2016 data not available: only have data through October, but this data could be summarized & used to make forecasts if desired.
 
