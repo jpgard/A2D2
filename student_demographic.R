@@ -41,6 +41,11 @@ studentlist = rbind(studentlist_13_14, studentlist_14_15, studentlist_15_16)
 studentlist$FirstName = str_trim(toupper(studentlist$FirstName))
 studentlist$LastName = str_trim(toupper(studentlist$LastName))
 
+#TODO: REMOVE NON-ALPHA CHARACTERS FROM FIRSTNAME AND LASTNAME FIELDS IN STUDENTLIST TO IMPROVE MATCHING
+# remove alphanumeric characters
+# gsub("[^[:alnum:] ]", "", lastname)
+# (replace lastname with string to remove alphanumeric characters from)
+
 #===================================================================================
 #enrollment data
 
@@ -56,6 +61,8 @@ enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Leg
 #coerce first and last names to uppercase for matching in merges
 enrollment_data$FirstName = toupper(enrollment_data$FirstName)
 enrollment_data$LastName = toupper(enrollment_data$LastName)
+
+#TODO: REMOVE NON-ALPHA CHARACTERS FROM FIRSTNAME AND LASTNAME FIELDS IN ENROLLMENT_DATA
 
 studentlist = merge(studentlist, enrollment_data, row.names=c("LastName", "FirstName"), all.x=TRUE)
 #===================================================================================
