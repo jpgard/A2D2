@@ -54,13 +54,13 @@ studentlist$LastName = gsub("[^[:alnum:] ]", "", str_trim(toupper(studentlist$La
 enrollment_data = read.csv("alldata/2015-16 Enrollment Form Responses 07 15 2015.csv")
 
 #subset only needed data
-enrollment_data = enrollment_data[,c(2, 3, 7, 11, 14, 15, 18, 22, 23)]
+enrollment_data = enrollment_data[,c(2, 3, 7, 11, 14, 15, 18)]
 
 #reformat to match destination data in merge
-enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "Street.Address" = "StreetAddress", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
+enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
 revalue(enrollment_data$Gender, c("Male" = "M", "Female" = "F")) -> enrollment_data$Gender
 
-#coerce first and last names to uppercase for matching in merges
+#coerce first and last names to uppercase and remove non-alphanumeric data for matching in merges
 enrollment_data$FirstName = gsub("[^[:alnum:] ]", "", toupper(enrollment_data$FirstName))
 enrollment_data$LastName = gsub("[^[:alnum:] ]", "", toupper(enrollment_data$LastName))
 
@@ -68,13 +68,18 @@ enrollment_data$LastName = gsub("[^[:alnum:] ]", "", toupper(enrollment_data$Las
 studentlist = FillIn(D1 = studentlist, D2 = enrollment_data, Var1 = "Gender", Var2 = "Gender", KeyVar = c("FirstName", "LastName"))
 #studentlist = FillIn(D1 = studentlist, D2 = enrollment_data, Var1 = "Gender", Var2 = "Gender", KeyVar = c("FirstName", "LastName"))
 
-#pull street address, city, and ZIP to fill in
-
 #remove gender variable after filling in
 
 enrollment_data = enrollment_data[,-4]
 
 studentlist = merge(studentlist, enrollment_data, by=c("LastName", "FirstName"), all.x=TRUE)
+
+#remove columns duplicated in merge; rename
+
+studentlist = studentlist[,-c(15:17)]
+
+studentlist = rename(studentlist, c("Ethnicity.x" = "Ethnicity", "Languages.x" = "Languages", "SpecialEducation.x" = "SpecialEducation", "Grade in 2015-16" = "Grade_2015_2016"))
+
 
 ##TODO: CHECK DATA, COMPLETE MORE MERGES BELOW
 
@@ -106,12 +111,20 @@ attendance_2013_2014 = separate(attendance_2013_2014, col = "Student", into = c(
 attendance_2014_2015 = separate(attendance_2014_2015, col = "Student", into = c("LastName", "FirstName"), sep = ",")
 
 
-#subset
+#subset columns to keep only relevant/needed data
 attendance_2013_2014 = attendance_2013_2014[,c("LastName", "FirstName", "Tardies", "ExcusedAbsences", "UnexcusedAbsences", "SuspensionAbsences", "TotalAbsences", "RecordYear", "Dropped")]
 attendance_2014_2015 = attendance_2014_2015[,c("LastName", "FirstName", "Tardies", "ExcusedAbsences", "UnexcusedAbsences", "SuspensionAbsences", "TotalAbsences", "RecordYear", "Dropped")]
 
+#combine to master dataset
 attendance_master = rbind(attendance_2013_2014, attendance_2014_2015)
 
+#clean names to transform for best matching by converting to caps, removing non-alphanumeric characters, and stripping whitespace
+
+attendance_master$FirstName = gsub("[^[:alnum:] ]", "", str_trim(toupper(attendance_master$FirstName)))
+attendance_master$LastName = gsub("[^[:alnum:] ]", "", str_trim(toupper(attendance_master$LastName)))
+
+#merge to studentlist
+studentlist = merge(studentlist, attendance_master, all.x=TRUE)
 #===================================================================================
 #directly certified students
 
@@ -126,10 +139,23 @@ names(DC3) = c("UIC", "EligCat", "LastName", "FirstName", "MiddleName", "DOB", "
 
 directly_certified = rbind(DC1, DC2, DC3)
 
-directly_certified = directly_certified[,c(1:5)]
+directly_certified = directly_certified[,c(1, 2)]
 
+directly_certified = rename(directly_certified, c("EligCat" = "Direct_Cert_Type"))
+
+#create new TRUE field to indicate directly certified students
+directly_certified$DirectlyCertified=TRUE
+#add more descriptive names -- S = "SNAP" (supplemental nutrition assistance program), F = "FOSTER" (foster child)
+directly_certified$Direct_Cert_Type = revalue(directly_certified$Direct_Cert_Type, c("S" = "SNAP", "F" = "FOSTER"))
+
+
+#merge list
+studentlist = merge(studentlist, directly_certified, all.x=TRUE)
+
+#fill in "DirectlyCertified" field for students not directly certified
+studentlist$DirectlyCertified[is.na(studentlist$DirectlyCertified)] <- "FALSE"
 
 #===================================================================================
-#merge with student list
-#read in other datasets
+write.csv(studentlist, file="studentlist.csv")
+#read in other datasets?
 
