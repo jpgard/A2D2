@@ -57,7 +57,7 @@ enrollment_data = read.csv("alldata/2015-16 Enrollment Form Responses 07 15 2015
 enrollment_data = enrollment_data[,c(2, 3, 7, 11, 14, 15, 18)]
 
 #reformat to match destination data in merge
-enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "Grade in 2015-16"))
+enrollment_data = rename(enrollment_data, c("Legal.last.name" = "LastName", "Legal.first.name" = "FirstName", "What.language.s..does.the.student.speak."= "Languages", "Does.the.student.receive.special.education.services.listed.on.an.IEP." = "SpecialEducation", "X2015.16.Grade.level" = "GradeLevel_2015_2016"))
 revalue(enrollment_data$Gender, c("Male" = "M", "Female" = "F")) -> enrollment_data$Gender
 
 #coerce first and last names to uppercase and remove non-alphanumeric data for matching in merges
@@ -76,12 +76,9 @@ studentlist = merge(studentlist, enrollment_data, by=c("LastName", "FirstName"),
 
 #remove columns duplicated in merge; rename
 
-studentlist = studentlist[,-c(15:17)]
+studentlist = studentlist[,-c(14:17)]
 
-studentlist = rename(studentlist, c("Ethnicity.x" = "Ethnicity", "Languages.x" = "Languages", "SpecialEducation.x" = "SpecialEducation", "Grade in 2015-16" = "Grade_2015_2016"))
-
-
-##TODO: CHECK DATA, COMPLETE MORE MERGES BELOW
+studentlist = rename(studentlist, c("Ethnicity.x" = "Ethnicity", "Languages.x" = "Languages", "SpecialEducation.x" = "SpecialEducation", "GradeLevel_2015_2016.x" = "GradeLevel_2015_2016"))
 
 #===================================================================================
 #attendance - NOTE: 2015-2016 data not available: only have data through October, but this data could be summarized & used to make forecasts if desired.
@@ -156,6 +153,8 @@ studentlist = merge(studentlist, directly_certified, all.x=TRUE)
 studentlist$DirectlyCertified[is.na(studentlist$DirectlyCertified)] <- "FALSE"
 
 #===================================================================================
-write.csv(studentlist, file="studentlist.csv")
+write.csv(unique(studentlist), file="studentlist_complete.csv", row.names=FALSE)
+write.csv(unique(studentlist[,-c(2,3)]), file="studentlist_public.csv", row.names=FALSE)
+write.csv(unique(studentlist[,c(1:3)]), file="UIC_KEY.csv", row.names=FALSE)
 #read in other datasets?
 
