@@ -156,5 +156,5 @@ studentlist$DirectlyCertified[is.na(studentlist$DirectlyCertified)] <- "FALSE"
 write.csv(unique(studentlist), file="studentlist_complete.csv", row.names=FALSE)
 write.csv(unique(studentlist[,-c(2,3)]), file="studentlist_public.csv", row.names=FALSE)
 write.csv(unique(studentlist[,c(1:3)]), file="UIC_KEY.csv", row.names=FALSE)
-#read in other datasets?
+
 
