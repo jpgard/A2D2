@@ -157,4 +157,5 @@ write.csv(unique(studentlist), file="studentlist_complete.csv", row.names=FALSE)
 write.csv(unique(studentlist[,-c(2,3)]), file="studentlist_public.csv", row.names=FALSE)
 write.csv(unique(studentlist[,c(1:3)]), file="UIC_KEY.csv", row.names=FALSE)
 
-
+#removed first, last, middle, and address columns from final public list
+#UIC numbers hashed in python using hashlib after running this script
