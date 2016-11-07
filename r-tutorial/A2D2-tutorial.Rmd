@@ -1,0 +1,114 @@
+---
+title: "Data Cleaning with R"
+author: "Josh Gardner"
+date: "November 6, 2016"
+output: html_document
+---
+
+#Load data from CSV
+```{r}
+# make sure you set your working directory to the correct location before running this!
+
+# load data; this data was downloaded from http://www.fec.gov/disclosurep/PDownload.do
+infile = "P00000001D-ALL.csv"
+cf = read.csv(infile, row.names = NULL, na.strings = c('', ' '))
+```
+
+#Inspect data
+```{r}
+head(cf, 20)
+
+str(cf)
+
+# view table of number of entries for each candidate 
+table(cf$cand_nm)
+
+# look at the first 100 values for disb_disc
+cf$disb_desc[1:100]
+
+# boxplots of expenditures by candidate
+par(las=1, mar=c(3,12,1,1))
+boxplot(cf$disb_amt ~ cf$cand_nm, horizontal = TRUE)
+```
+
+# Filter Data
+This example uses the filter() function from the dplyr package, which is much easier to use than base R. Note that you can filter on multiple fields, or use conditions. Check the documentation for filter by typing '?filter' in the console.
+```{r}
+# load packages; if you haven't installed try running: install.packages('dplyr')
+library(dplyr)
+
+cf_sub = filter(cf, cand_nm == 'Trump, Donald J.' | cand_nm == 'Clinton, Hillary Rodham')
+```
+
+#Task 1: Clean up text fields
+```{r}
+library(magrittr)
+library(tidyr)
+library(stringr)
+
+# separate cand_nm into two columns; note that you need to choose how to handle cnadidates with > 2 names by specifying the 'extra' parameter.
+# view the documentation for separate by typing ?separate to control the characters R will separate on (spaces, underscores, decimal, etc)
+cf_clean = separate(cf_sub, col = cand_nm, into = c("cand_last", "cand_first"), extra = "merge")
+
+
+
+# separate disb_dt into 3 columns for day, month, and year.
+# before we separate, let's make a copy of disb_dt to use later when we explore DateTime objects.
+cf_clean$disb_dt_str = cf_clean$disb_dt
+cf_clean = separate(cf_clean, disb_dt, into = c("disb_day", "disb_month", "disb_yr"))
+
+
+
+# remove space OR comma + space from a text field using the regex ' |, '
+# first, an example using x; then we actually perform this substitution on our dataframe
+x = cf_clean$recipient_nm[1:10]
+str_replace_all(x, ' |, ', '_')
+
+cf_clean$recipient_nm = str_replace_all(cf_clean$recipient_nm, ' |, ', '_')
+```
+
+#More text cleaning: replacing values
+```{r}
+
+# use the recode function to revalue a variable (replacing values with new values)
+# we'll view our values for disb_yr and then replace 15 and 16 with 2015 and 2016.
+table(cf_clean$disb_yr)
+x = cf_clean$disb_yr[1:50]
+recode(x, `16` = "2016", `15` = "2015") # I have no idea why you need to use backticks for numeric values, but you do.
+
+cf_clean$disb_yr = recode(cf_clean$disb_yr, `16` = "2016", `15` = "2015")
+table(cf_clean$disb_yr)
+cf_clean = filter(cf_clean, disb_yr == "2016" | disb_yr == "2015") # here, we drop the 3 pesky observations with a bad year
+
+# same for months
+table(cf_clean$disb_month)
+x = cf_clean$disb_month[1:50]
+recode(x, "JAN" = "January", "FEB" = "February", "MAR" = "March", "APR" = "April", "MAY" = "May", "JUN" = "June", "JUL" = "July", "AUG" = "August", "SEP" = "September", "OCT" = "October", "NOV" = "November", "DEC" = "December")
+
+cf_clean$disb_month = recode(cf_clean$disb_month, "JAN" = "January", "FEB" = "February", "MAR" = "March", "APR" = "April", "MAY" = "May", "JUN" = "June", "JUL" = "July", "AUG" = "August", "SEP" = "September", "OCT" = "October", "NOV" = "November", "DEC" = "December")
+table(cf_clean$disb_month)
+
+
+# keep only first 5 digits of ZIP so all ZIP codes are the same
+# we do this here by applying the substr() function to each element of the recipient_zip column
+# note that you could apply ANY valud function to this column the same way using the mutate() function!
+cf_clean = mutate(cf_clean, recipient_zip = substr(recipient_zip, 1, 5))
+```
+
+# Indicator variables, quantiles, and scaling
+```{r}
+# binary indicator variables - the easy way
+cf_clean$is_rent = ifelse(cf_clean$disb_desc == "RENT", TRUE, FALSE)
+```
+
+# Dates and times
+```{r}
+# convert date to date object
+
+# find day of week of date
+
+```
+
+# Reshaping data
+
+# Merging data
