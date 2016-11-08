@@ -224,7 +224,11 @@ cf_clean %>%
 cf_clean %>%
     ddply(.(disb_weekday), summarize, total_disb = sum(disb_amt)) %>%
     ggplot(aes(x = disb_weekday, y = total_disb)) + geom_bar(stat = "identity")
-    
+```
+
+# Write results to a csv file
+```{r}
+write.csv(cf_clean, file = "campaign_finance_clean.csv", row.names=FALSE, col.names=TRUE)
 ```
 
 
