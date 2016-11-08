@@ -4,6 +4,10 @@ author: "Josh Gardner"
 date: "November 6, 2016"
 output: html_document
 ---
+#Install packages used in this session
+```{r}
+install.packages("dplyr", "stringr", "tidyr", "magrittr", "Hmisc")
+```
 
 #Load data from CSV
 ```{r}
@@ -37,7 +41,8 @@ This example uses the filter() function from the dplyr package, which is much ea
 # load packages; if you haven't installed try running: install.packages('dplyr')
 library(dplyr)
 
-cf_sub = filter(cf, cand_nm == 'Trump, Donald J.' | cand_nm == 'Clinton, Hillary Rodham')
+# filter to only include Trump and Clinton, filter to remove any disb_amt that is < 0; these must be data entry errors
+cf_sub = filter(cf, cand_nm == 'Trump, Donald J.' | cand_nm == 'Clinton, Hillary Rodham', disb_amt >= 0)
 ```
 
 #Task 1: Clean up text fields
@@ -56,6 +61,7 @@ cf_clean = separate(cf_sub, col = cand_nm, into = c("cand_last", "cand_first"), 
 # before we separate, let's make a copy of disb_dt to use later when we explore DateTime objects.
 cf_clean$disb_dt_str = cf_clean$disb_dt
 cf_clean = separate(cf_clean, disb_dt, into = c("disb_day", "disb_month", "disb_yr"))
+# there is also a function called unite() that is the opposite of separate--it combines 2 columns into one
 
 
 
@@ -80,6 +86,8 @@ cf_clean$disb_yr = recode(cf_clean$disb_yr, `16` = "2016", `15` = "2015")
 table(cf_clean$disb_yr)
 cf_clean = filter(cf_clean, disb_yr == "2016" | disb_yr == "2015") # here, we drop the 3 pesky observations with a bad year
 
+
+
 # same for months
 table(cf_clean$disb_month)
 x = cf_clean$disb_month[1:50]
@@ -87,6 +95,7 @@ recode(x, "JAN" = "January", "FEB" = "February", "MAR" = "March", "APR" = "April
 
 cf_clean$disb_month = recode(cf_clean$disb_month, "JAN" = "January", "FEB" = "February", "MAR" = "March", "APR" = "April", "MAY" = "May", "JUN" = "June", "JUL" = "July", "AUG" = "August", "SEP" = "September", "OCT" = "October", "NOV" = "November", "DEC" = "December")
 table(cf_clean$disb_month)
+
 
 
 # keep only first 5 digits of ZIP so all ZIP codes are the same
@@ -97,18 +106,88 @@ cf_clean = mutate(cf_clean, recipient_zip = substr(recipient_zip, 1, 5))
 
 # Indicator variables, quantiles, and scaling
 ```{r}
+library(Hmisc)
 # binary indicator variables - the easy way
+# create a TRUE/FALSE indicator for rent, based on the value in disb_disc column
 cf_clean$is_rent = ifelse(cf_clean$disb_desc == "RENT", TRUE, FALSE)
+
+
+
+# create indicator column that breakst disb_amt into quartiles; this is useful if you want to visualize/summarize within those groups
+cf_clean$disb_amt_group = cut2(cf_clean$disb_amt, g = 4)
+
+
+
+# create new column that is scaled disb_amt; this uses the default for scale() which is to scale to mean 0 standard deviation 1
+# if you want to REPLACE the column instead of creating a new one, use: mutate(cf_clean, disb_amt = scale(disb_amt))
+cf_clean = mutate(cf_clean, disb_amt_scaled = scale(disb_amt))
 ```
 
 # Dates and times
 ```{r}
-# convert date to date object
+# convert date to date object; note that it LOOKS the same afterward but is a datetime object.
+# to view format details, check ?strptime
+x = cf_clean$disb_dt_str[0:10]
+x[1]
+as.Date(x, format = '%d-%b-%y')
+cf_clean = mutate(cf_clean, disb_dt = as.Date(disb_dt_str, format = '%d-%b-%y'))
 
-# find day of week of date
 
+
+# create column with dat of week of date; note that this would only work on datetime objects (not on strings)
+cf_clean = mutate(cf_clean, disb_weekday = weekdays(disb_dt))
+```
+
+# Anonymize/hash strings
+**Disclaimer: I know nothing about hashing and you should ensure that whatever method you choose to hash your data is SECURE and LEGAL.**
+```{r}
+# hash cmte_id using sha256
+cf_clean = mutate(cf_clean, cmte_id = sha256(as.character(cmte_id)))
+
+
+
+# hash cand_id using md5
+cf_clean = mutate(cf_clean, cand_id = md5(as.character(cand_id)))
+```
+
+# Drop columns
+```{r}
+# my preferred method: make a list; drop everything in that list
+drop_cols = c("cmte_id", "cand_id", "cand_first") 
+cf_clean = cf_clean[, !(names(cf_clean) %in% drop_cols)]
+```
+
+#Counts and other summaries by group
+ddply() is your best friend here. If you need to do any kind of groupwise operation, this is probably the way to do it.
+
+This is typically a useful way to get data for plots as well.
+
+```{r}
+# get counts by candidate; this is just number of records for each candidate
+cand_counts = ddply(cf_clean, .(cand_last), nrow)
+cand_counts
+
+# get total disbursements by year and month
+disb_yr_mo = ddply(cf_clean, .(disb_yr, disb_month), summarize, total_disb = sum(disb_amt))
+disb_yr_mo
+
+# get average disbursements by state
+disb_st_avg = ddply(cf_clean, .(recipient_st), summarize, avg_disb = mean(disb_amt))
+arrange(disb_st_avg, desc(avg_disb))
 ```
 
 # Reshaping data
+We'll use a different dataset here.
+```{r}
+library(tidyr)
+data("occupationalStatus")
+os = data.frame(occupationalStatus)
+os
 
-# Merging data
+# convert from "narrow" to "wide" data by spreading destination column and using Freq as value
+spread(os, destination, Freq)
+```
+
+
+
+
