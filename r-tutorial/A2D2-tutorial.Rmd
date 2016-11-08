@@ -6,7 +6,7 @@ output: html_document
 ---
 #Install packages used in this session
 ```{r}
-install.packages("dplyr", "stringr", "tidyr", "magrittr", "Hmisc")
+install.packages("dplyr", "stringr", "tidyr", "magrittr", "Hmisc", "ggplot2")
 ```
 
 #Load data from CSV
@@ -186,6 +186,45 @@ os
 
 # convert from "narrow" to "wide" data by spreading destination column and using Freq as value
 spread(os, destination, Freq)
+```
+
+# Basic exploratory data analysis
+```{r}
+barplot(table(cf_clean$cand_last))
+
+# sums by date; here we aggregate first using the aggregate() function 
+# aggregate() is a simpler, but more limited, tool to aggregate data by dimension
+daily_sums = aggregate(disb_amt ~ disb_dt , data=cf_clean, sum)
+plot(daily_sums, type = "l")
+
+# what if we want to view this by part? the easiest way is to use a different package (see below); base R is quite limited in its plotting
+```
+
+# Exploratory data analysis & piping with ggplot2
+Note: if you like this section and want to use more ggplot2, I would HIGLY recommend "The R Graphics Cookbook" by Winston Chang.
+
+```{r}
+library(ggplot2)
+
+#
+daily_sums_party = aggregate(disb_amt ~ disb_dt + cand_last, data=cf_clean, sum)
+ggplot(daily_sums_party, aes(x = disb_dt, y = disb_amt, color = cand_last)) + geom_line()
+
+
+# let's take our example from above (counts by candidate) and turn it into a simple bar graph
+cf_clean %>%
+    ddply(.(cand_last), nrow) %>%
+    ggplot(aes(x = cand_last, y = V1)) + geom_bar(stat = "identity")
+
+# more advanced: let's use the date (this is why we needed Date objects) to plot totals by date
+cf_clean %>%
+    ggplot(aes(x = disb_dt, y = disb_amt)) + geom_line() + facet_grid(cand_last ~ .)
+
+# contributions by day of week
+cf_clean %>%
+    ddply(.(disb_weekday), summarize, total_disb = sum(disb_amt)) %>%
+    ggplot(aes(x = disb_weekday, y = total_disb)) + geom_bar(stat = "identity")
+    
 ```
 
 
