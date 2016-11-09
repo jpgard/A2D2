@@ -7,6 +7,7 @@ output: html_document
 #Install packages used in this session
 ```{r}
 install.packages("dplyr", "stringr", "tidyr", "magrittr", "Hmisc", "ggplot2")
+
 ```
 
 #Load data from CSV
@@ -115,7 +116,7 @@ cf_clean$is_rent = ifelse(cf_clean$disb_desc == "RENT", TRUE, FALSE)
 
 # create indicator column that breakst disb_amt into quartiles; this is useful if you want to visualize/summarize within those groups
 cf_clean$disb_amt_group = cut2(cf_clean$disb_amt, g = 4)
-
+0
 
 
 # create new column that is scaled disb_amt; this uses the default for scale() which is to scale to mean 0 standard deviation 1
